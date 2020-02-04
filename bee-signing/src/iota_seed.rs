@@ -3,7 +3,7 @@ use crypto::Sponge;
 use iota_conversion::Trinary;
 use rand::Rng;
 use std::marker::PhantomData;
-use ternary::{TritBuf, TRYTE_ALPHABET};
+use ternary::{Trits, TritBuf, TRYTE_ALPHABET};
 
 // TODO Put constants in a separate file
 
@@ -36,34 +36,30 @@ impl<S: Sponge + Default> Seed for IotaSeed<S> {
             .collect();
 
         Self {
-            seed: TritBuf::from_i8_unchecked(seed.trits()),
+            seed: TritBuf::from_i8_unchecked(&seed.trits()),
             _sponge: PhantomData,
         }
     }
 
     // TODO: documentation
-    fn from_bytes(bytes: &[i8]) -> Result<Self, Self::Error> {
-        if bytes.len() != 243 {
-            return Err(Self::Error::InvalidLength(bytes.len()));
-        }
-
-        for byte in bytes {
-            match byte {
-                -1 | 0 | 1 => continue,
-                _ => return Err(Self::Error::InvalidTrit(*byte)),
-            }
+    fn from_buf(buf: TritBuf) -> Result<Self, Self::Error> {
+        if buf.len() != 243 {
+            return Err(Self::Error::InvalidLength(buf.len()));
         }
 
         Ok(Self {
-            seed: TritBuf::from_i8_unchecked(bytes),
+            seed: buf,
             _sponge: PhantomData,
         })
     }
 
     // TODO: documentation
-    fn to_bytes(&self) -> &[i8] {
-        // &self.0.to_bytes()
-        self.seed.inner_ref()
+    fn as_bytes(&self) -> &[i8] {
+        self.seed.as_i8_slice()
+    }
+
+    fn trits(&self) -> &Trits {
+        &self.seed
     }
 }
 
@@ -75,6 +71,7 @@ impl<S: Sponge + Default> IotaSeed<S> {
 
         // TODO Put in trit utilities file
         for _ in 0..index {
+            // TODO: Smelly code, needs refactoring for the new trits API
             for trit in subseed.inner_mut().iter_mut() {
                 *trit += 1;
                 if *trit > MAX_TRIT_VALUE {
@@ -85,7 +82,7 @@ impl<S: Sponge + Default> IotaSeed<S> {
             }
         }
 
-        let tmp = match sponge.digest(&subseed.as_trits()) {
+        let tmp = match sponge.digest(&subseed) {
             Ok(buf) => buf,
             Err(_) => unreachable!(),
         };
