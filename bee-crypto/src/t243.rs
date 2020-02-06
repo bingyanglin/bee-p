@@ -8,21 +8,31 @@
 //! 243 trits, each (rather inefficiently) represented by one `u8`.
 
 use crate::{
+    i384::{
+        self,
+        BigEndian,
+        LittleEndian,
+        I384,
+    },
     TritsBuf,
     ValidTrits,
 };
 // use std::cmp::Ordering;
 
 /// The number of trits in a T243
-const T243_LEN: usize = 243;
+pub const LEN: usize = 243;
 
-pub(crate) struct T243(TritsBuf);
+pub struct T243(TritsBuf);
 
 impl T243 {
     fn zero() -> Self {
-        let mut inner = TritsBuf::with_capacity(T243_LEN);
+        let mut inner = TritsBuf::with_capacity(LEN);
         inner.fill(ValidTrits::Zero);
         Self(inner)
+    }
+
+    pub fn inner_ref(&self) -> &TritsBuf {
+        &self.0
     }
 
     pub fn into_inner(self) -> TritsBuf {
@@ -36,62 +46,57 @@ impl Default for T243 {
     }
 }
 
-// /// This will consume the input bytes slice and write to trits.
-// fn bytes_to_trits(bytes: &mut [u8], trits: &mut [i8]) {
-//     assert_eq!(bytes.len(), I384_LEN_BYTES);
-//     assert_eq!(trits.len(), T243_LEN);
+impl From<I384<BigEndian, i384::U8Repr>> for T243 {
+    fn from(value: I384<BigEndian, i384::U8Repr>) -> Self {
+        let be_u32 = Into::<I384<BigEndian, i384::U32Repr>>::into(value);
+        let le_u32= Into::<I384<LittleEndian, i384::U32Repr>>::into(be_u32);
+        le_u32.into()
+    }
+}
 
-//     trits[T243_LEN - 1] = 0;
+impl From<I384<BigEndian, i384::U32Repr>> for T243 {
+    fn from(value: I384<BigEndian, i384::U32Repr>) -> Self {
+        let value_little_endian: I384<LittleEndian, i384::U32Repr> = value.into();
+        value_little_endian.into()
+    }
+}
 
-//     bytes.reverse();
-//     // We _know_ that the sizes match.
-//     // So this is safe enough to do and saves us a few allocations.
-//     let base: &mut [u32] =
-//         unsafe { core::slice::from_raw_parts_mut(bytes.as_mut_ptr() as *mut u32, 12) };
+impl From<I384<LittleEndian, i384::U32Repr>> for T243 {
+    fn from(value: I384<LittleEndian, i384::U32Repr>) -> Self {
+        let mut value = value;
 
-//     if base.is_zero() {
-//         trits.clone_from_slice(&[0; T243_LEN]);
-//         return;
-//     }
+        // Shift the bigint from signed into unsigned positive space.
+        // let flip_trits = if value.is_negative() {
+        //     value.add_inplace(i384::LE_U32_TERNARY_0);
+        //     false
+        // } else {
+        //     if value > i384::LE_U32_TERNARY_0 {
+        //         value.sub_inplace(i384::LE_U32_TERNARY_0);
+        //         true
+        //     } else {
+        //         value.add_integer_inplace(1u32);
+        //         let mut tmp = i384::LE_U32_TERNARY_0;
+        //         tmp.sub_inplace(value);
+        //         value = tmp;
+        //         false
+        //     }
+        // };
+        value.add_inplace(i384::LE_U32_TERNARY_0);
 
-//     let mut flip_trits = false;
+        let mut trits_buf = T243::zero().into_inner();
+        for trit in trits_buf.inner_mut() {
+            let mut rem = 0;
 
-//     if base[I384_LEN_U32 - 1] >> 31 == 0 {
-//         // positive number
-//         // we need to add HALF_3 to move it into positvie unsigned space
-//         base.add_inplace(HALF_3);
-//     } else {
-//         // negative number
-//         base.not_inplace();
-//         if base.cmp(&HALF_3) > 0 {
-//             base.sub_inplace(&HALF_3);
-//             flip_trits = true;
-//         } else {
-//             base.add_integer_inplace(1u32);
-//             let mut tmp = HALF_3.clone();
-//             tmp.sub_inplace(base);
-//             base.clone_from_slice(&tmp);
-//         }
-//     }
+            // Iterate over the digits of the bigint, starting from the most significant one.
+            for digit in value.inner.iter_mut().rev() {
+                let digit_with_rem = ((rem as u64) << 32) | *digit as u64;
+                *digit = (digit_with_rem / 3u64) as u32;
+                rem = (digit_with_rem % 3u64) as u32;
+            }
 
-//     let mut rem;
-//     for i in 0..T243_LEN - 1 {
-//         rem = 0;
-//         for j in (0..U32_IN_I384).rev() {
-//             let lhs = ((rem as u64) << 32) | (base[j] as u64);
-//             let rhs = 3u64;
-//             let q = (lhs / rhs) as u32;
-//             let r = (lhs % rhs) as u32;
+            *trit = rem as i8 - 1i8;
+        }
 
-//             base[j] = q;
-//             rem = r;
-//         }
-//         trits[i] = rem as i8 - 1;
-//     }
-
-//     if flip_trits {
-//         for v in trits.iter_mut() {
-//             *v = -*v;
-//         }
-//     }
-// }
+        T243(trits_buf)
+    }
+}

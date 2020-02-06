@@ -7,17 +7,22 @@
 //!
 //! [PR #21]: https://github.com/iotaledger/bee-rfcs/pull/21
 
-mod curlp;
 mod private;
-pub(crate) mod i384;
-mod t243;
 mod utils;
+
+pub mod i384;
+pub mod t243;
+
+mod curlp;
 
 pub use curlp::{
     CurlP,
     CurlP27,
     CurlP81,
 };
+
+pub use i384::I384;
+pub use t243::T243;
 
 use ternary::{
     Trits,
