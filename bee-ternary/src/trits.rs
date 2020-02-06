@@ -78,8 +78,8 @@ impl TritsBuf {
     ///
     /// **WARNING:** If used incorrectly (that is, if the bytes are not correctly encoding trits), the
     /// usage of `Trits` might lead to unexpected behaviour.
-    pub fn from_i8_unchecked<T: Into<Vec<i8>>>(v: T) -> Self {
-        Self(v.into())
+     pub const fn from_i8_unchecked(v: Vec<i8>) -> Self {
+        Self(v)
     }
 
     /// Create a `Trits` from a `&[u8]` slice without verifying that its bytes are
@@ -93,9 +93,8 @@ impl TritsBuf {
     ///
     /// **WARNING:** If used incorrectly (that is, if the bytes are not correctly encoding trits), the
     /// usage of `Trits` might lead to unexpected behaviour.
-    pub fn from_u8_unchecked<T: Into<Vec<u8>>>(v: T) -> Self {
-        let inner = v.into();
-        let mut inner = std::mem::ManuallyDrop::new(inner);
+    pub fn from_u8_unchecked(v: Vec<u8>) -> Self {
+        let mut inner = std::mem::ManuallyDrop::new(v);
 
         let p = inner.as_mut_ptr();
         let len = inner.len();

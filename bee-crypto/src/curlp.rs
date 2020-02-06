@@ -288,8 +288,8 @@ KXRVLFETGUTUWBCNCC9DWO99JQTEI9YXVOZHWELSYP9SG9KN9WCKXOVTEFHFH9EFZJKFYCZKQPPBXYSG
     #[test]
     fn verify_curlp27_hash_trits() {
         let mut curlp27 = CurlP27::new();
-        let input_trits = TritsBuf::from_i8_unchecked(INPUT_TRITS);
-        let expected_hash = TritsBuf::from_i8_unchecked(EXPECTED_CURLP27_HASH_TRITS);
+        let input_trits = TritsBuf::from_i8_unchecked(INPUT_TRITS.to_vec());
+        let expected_hash = TritsBuf::from_i8_unchecked(EXPECTED_CURLP27_HASH_TRITS.to_vec());
         let calculated_hash = curlp27.digest(&input_trits.as_trits());
         assert!(calculated_hash.is_ok(), "<CurlP27 as Sponge>::Error is Infallible and this assert should never fail");
         assert_eq!(expected_hash, calculated_hash.unwrap());
